@@ -4,7 +4,7 @@
   const DEFAULTS = {
     announcement: "Sign up and get 20% off to your first order. Sign Up Now",
     hero: {
-      image: "./assets/img/hero-model.svg",
+      image: "./assets/img/toposel4.jpg",
       heading: "FIND CLOTHES THAT MATCHES YOUR STYLE",
       subheading:
         "Browse through our diverse range of meticulously crafted garments, designed to bring out your individuality and cater to your sense of style.",
@@ -25,20 +25,20 @@
     arrivalsTitle: "NEW ARRIVALS",
     products: [
       {
-        id: "tee-1",
-        name: "T-shirt with Tape Details",
-        image: "./assets/img/product-tee.svg",
-        price: 120,
+        id: "drop-1",
+        name: "Nuova Summer Drop",
+        image: "./assets/img/toposel1.jpg",
+        price: 180,
         oldPrice: null,
-        rating: "4.5/5",
+        rating: "4.7/5",
       },
       {
-        id: "jeans-1",
-        name: "Skinny Fit Jeans",
-        image: "./assets/img/product-jeans.svg",
-        price: 240,
-        oldPrice: 260,
-        rating: "3.5/5",
+        id: "drop-2",
+        name: "Pastel Street Hoodie",
+        image: "./assets/img/toposel3.jpg",
+        price: 210,
+        oldPrice: 250,
+        rating: "4.6/5",
       },
     ],
     viewAllText: "View All",
@@ -52,9 +52,45 @@
     }
   };
 
+  const migrateAssetPath = (path = "") => {
+    const map = {
+      "./assets/img/hero-model.svg": "./assets/img/toposel1.jpg",
+      "./assets/img/hero-sleek-chic.png": "./assets/img/toposel4.jpg",
+      "./assets/img/product-tee.svg": "./assets/img/toposel1.jpg",
+      "./assets/img/product-nuova-yellow.png": "./assets/img/toposel1.jpg",
+      "./assets/img/product-jeans.svg": "./assets/img/toposel3.jpg",
+      "./assets/img/product-pastel-pink.png": "./assets/img/toposel3.jpg",
+      "./assets/img/toposel2.jpg": "./assets/img/toposel4.jpg",
+      "./assets/img/toposel4.jpg": "./assets/img/toposel2.jpg",
+    };
+    return map[path] || path;
+  };
+
+  const normalizeCMS = (stored) => {
+    if (!stored || typeof stored !== "object") return structuredClone(DEFAULTS);
+
+    const next = {
+      ...structuredClone(DEFAULTS),
+      ...stored,
+      hero: {
+        ...DEFAULTS.hero,
+        ...(stored.hero || {}),
+      },
+    };
+
+    next.hero.image = migrateAssetPath(next.hero.image);
+    const sourceProducts = Array.isArray(stored.products) && stored.products.length ? stored.products : DEFAULTS.products;
+    next.products = sourceProducts.map((p) => ({
+      ...p,
+      image: migrateAssetPath(p.image),
+    }));
+
+    return next;
+  };
+
   const loadCMS = () => {
     const stored = parse(localStorage.getItem(STORAGE_KEY), null);
-    return stored && typeof stored === "object" ? stored : structuredClone(DEFAULTS);
+    return normalizeCMS(stored);
   };
 
   const saveCMS = (data) => localStorage.setItem(STORAGE_KEY, JSON.stringify(data));

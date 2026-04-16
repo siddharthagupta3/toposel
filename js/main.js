@@ -5,7 +5,7 @@
   const DEFAULTS = {
     announcement: "Sign up and get 20% off to your first order. Sign Up Now",
     hero: {
-      image: "./assets/img/hero-model.svg",
+      image: "./assets/img/toposel4.jpg",
       heading: "FIND CLOTHES THAT MATCHES YOUR STYLE",
       subheading:
         "Browse through our diverse range of meticulously crafted garments, designed to bring out your individuality and cater to your sense of style.",
@@ -26,20 +26,20 @@
     arrivalsTitle: "NEW ARRIVALS",
     products: [
       {
-        id: "tee-1",
-        name: "T-shirt with Tape Details",
-        image: "./assets/img/product-tee.svg",
-        price: 120,
+        id: "drop-1",
+        name: "Nuova Summer Drop",
+        image: "./assets/img/toposel1.jpg",
+        price: 180,
         oldPrice: null,
-        rating: "4.5/5",
+        rating: "4.7/5",
       },
       {
-        id: "jeans-1",
-        name: "Skinny Fit Jeans",
-        image: "./assets/img/product-jeans.svg",
-        price: 240,
-        oldPrice: 260,
-        rating: "3.5/5",
+        id: "drop-2",
+        name: "Pastel Street Hoodie",
+        image: "./assets/img/toposel3.jpg",
+        price: 210,
+        oldPrice: 250,
+        rating: "4.6/5",
       },
     ],
     viewAllText: "View All",
@@ -53,9 +53,45 @@
     }
   };
 
+  const migrateAssetPath = (path = "") => {
+    const map = {
+      "./assets/img/hero-model.svg": "./assets/img/toposel1.jpg",
+      "./assets/img/hero-sleek-chic.png": "./assets/img/toposel4.jpg",
+      "./assets/img/product-tee.svg": "./assets/img/toposel1.jpg",
+      "./assets/img/product-nuova-yellow.png": "./assets/img/toposel1.jpg",
+      "./assets/img/product-jeans.svg": "./assets/img/toposel3.jpg",
+      "./assets/img/product-pastel-pink.png": "./assets/img/toposel3.jpg",
+      "./assets/img/toposel2.jpg": "./assets/img/toposel4.jpg",
+      "./assets/img/toposel4.jpg": "./assets/img/toposel2.jpg",
+    };
+    return map[path] || path;
+  };
+
+  const normalizeCMS = (stored) => {
+    if (!stored || typeof stored !== "object") return structuredClone(DEFAULTS);
+
+    const next = {
+      ...structuredClone(DEFAULTS),
+      ...stored,
+      hero: {
+        ...DEFAULTS.hero,
+        ...(stored.hero || {}),
+      },
+    };
+
+    next.hero.image = migrateAssetPath(next.hero.image);
+    const sourceProducts = Array.isArray(stored.products) && stored.products.length ? stored.products : DEFAULTS.products;
+    next.products = sourceProducts.map((p) => ({
+      ...p,
+      image: migrateAssetPath(p.image),
+    }));
+
+    return next;
+  };
+
   const loadCMS = () => {
     const stored = parse(STORAGE_KEY, null);
-    return stored && typeof stored === "object" ? stored : DEFAULTS;
+    return normalizeCMS(stored);
   };
 
   const loadCart = () => parse(CART_KEY, []);
@@ -74,7 +110,13 @@
   if (heroHeading) heroHeading.textContent = cms.hero.heading;
   if (heroSubheading) heroSubheading.textContent = cms.hero.subheading;
   if (heroButton) heroButton.textContent = cms.hero.buttonText;
-  if (heroImage) heroImage.src = cms.hero.image;
+  if (heroImage) {
+    heroImage.src = cms.hero.image;
+    heroImage.onerror = () => {
+      heroImage.onerror = null;
+      heroImage.src = "./assets/img/hero-model.svg";
+    };
+  }
 
   const statsWrap = document.querySelector("[data-stats]");
   if (statsWrap) {
@@ -117,14 +159,23 @@
   const renderProducts = () => {
     if (!productsWrap) return;
     const products = Array.isArray(cms.products) ? cms.products : [];
+
+    const getImagePosition = (product) => {
+      const path = (product.image || "").toLowerCase();
+      if (path.includes("pastel")) return "center 22%";
+      if (path.includes("nuova") || path.includes("yellow")) return "center 18%";
+      return "center top";
+    };
+
     productsWrap.innerHTML = products
       .slice(0, getVisibleProductCount())
-      .map((p) => {
+      .map((p, index) => {
         const old = p.oldPrice ? `<span class="price-old">$${p.oldPrice}</span><span class="price-off">-20%</span>` : "";
+        const fallbackImage = index % 2 === 0 ? "./assets/img/product-tee.svg" : "./assets/img/product-jeans.svg";
         return `
         <article class="product-card" data-product-id="${p.id}">
           <div class="product-card__media">
-            <img src="${p.image}" alt="${p.name}" loading="lazy" />
+            <img src="${p.image}" alt="${p.name}" loading="lazy" style="object-position:${getImagePosition(p)}" onerror="this.onerror=null;this.src='${fallbackImage}'" />
           </div>
           <div class="product-card__body">
             <h3>${p.name}</h3>
@@ -154,10 +205,20 @@
   const menuBtn = document.querySelector("[data-menu-btn]");
   const mobileNav = document.querySelector("[data-mobile-nav]");
   if (menuBtn && mobileNav) {
+    menuBtn.setAttribute("aria-expanded", "false");
+
     menuBtn.addEventListener("click", () => {
       const open = mobileNav.classList.toggle("is-open");
       menuBtn.classList.toggle("is-open", open);
       menuBtn.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+
+    mobileNav.querySelectorAll("a").forEach((link) => {
+      link.addEventListener("click", () => {
+        mobileNav.classList.remove("is-open");
+        menuBtn.classList.remove("is-open");
+        menuBtn.setAttribute("aria-expanded", "false");
+      });
     });
 
     window.addEventListener("resize", () => {
